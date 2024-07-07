@@ -859,7 +859,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                     fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: {opinfo[4]} for instruction \'{current_instruction}\' is signed, but the operand doesn\'t support that.")
                 unsignedver = words[idx] * sign
                 if(unsignedver != (unsignedver & mask)):
-                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Invalid {opinfo[4]} for instruction \'{current_instruction}\'")
+                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: {opinfo[4]} for instruction \'{current_instruction}\' doesn\'t fit, it\'s too big. (bit width: {opinfo[2]})")
 
                 machine_code |= (words[idx] & mask) << (opinfo[0] + ((current_opinfo[3] - opinfo[1] - 1) * WORD_LENGTH))
                 # Just to be safe, it's ANDed with the mask
