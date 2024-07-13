@@ -1,4 +1,4 @@
-from assembler import assemble, formatter, WORD_LENGTH
+from assembler import assemble, formatter, bake_constants, WORD_LENGTH
 import sys
 from common import *
 from math import log2
@@ -220,6 +220,7 @@ def main():
         fatal_error('main', "No ROM size specified, cannot continue.\nPlease specify a ROM size.")
     if(verbosity >= 1):
         print("main: Padding word is \'0x%04X\'"%padding_word)
+    bake_constants(matt_mode)
     machine_code_output = assemble(input_file, ROM_size, verbosity - 1, debug_flags, matt_mode)
     formatter(machine_code_output, output_file, ROM_size, padding_word, format_style, verbosity)
 

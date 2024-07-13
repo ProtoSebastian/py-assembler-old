@@ -58,7 +58,7 @@ PSEUDO_INSTRUCTIONS = {
           'lsh':['add {0} {0} {1}'], # lsh A C : add A A C  # do a "left-shift by 1" operation on register A and store the result in C
           'inc':['adi {0} 1'],       # inc A   : adi A  1   # increment register A by 1
           'dec':['adi {0} -1'],      # dec A   : adi A -1   # decrement register A by 1
-          'not':['nor {0} {1} r0'],  # not A C : nor A r0 C # do the bitwise "NOT" operation on register A and store the result in C
+          'not':['nor {0} r0 {1}'],  # not A C : nor A r0 C # do the bitwise "NOT" operation on register A and store the result in C
 #--------------------------------------------------------------------------------#
           'nnd':['and {0} {1} {2}\n'+   # nnd A B C    : and A B C
                  'not {2} {2}'       ], #                not C C         # do the bitwise "not AND" operation on registers A, B and store the result in C
@@ -446,41 +446,8 @@ def remove_comment(comment_symbols: str, line: str):
     if(index==-1):
         return line
     return line[:index]
-
-###- MAIN THING -###
-# Assemble function
-def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_flags: int, matt_mode: bool):
-    try:
-        assembly_file = open(assembly_filename, 'r')
-    except FileNotFoundError as _ERR:
-        fatal_error('assembler', f"{assembly_filename}: File not found.\n{_ERR}")
-    if(verbose_level >= 0):
-        print(f"assembler: Reading from \'{assembly_filename}\'")
-        if(matt_mode):
-            # Matt mode engaged.
-            print(f"assembler: Matt mode active. ORG, DB, & multi-line pseudo-instructions are disabled.")
-    lines = [line.strip() for line in assembly_file]
-
-    # DEBUG: ROM address size constant
-    ROM_address_size = int(log2(ROM_size) + 3) >> 2
-    line_address_size = int(log(len(lines), 10) + 1)
-    if(verbose_level >= 2):
-        print("Address hex width: %d (%s)"%(ROM_address_size, ''.join(hex(x%16).upper()[2] for x in range(ROM_address_size))))
-        print("Line address width: %d (%s)"%(line_address_size, ''.join(chr(0x30 + (x%10)) for x in range(line_address_size))))
-
-    # Remove comments and blanklines, and add line number
-    lines = [[remove_comment("/;#", line).strip(), idx+1] for idx, line in enumerate(lines)]
-
-    # Remove empty lines & add line numbers
-    lines = [line for line in lines if(len(line[0]) != 0)]
-
-    # Populatesymbol table
-    symbols = STARTING_SYMBOLS
-    # Definitions table
-    definitions = {}
-    # Labels table
-    labels = {}
-
+# Bake a cake!
+def bake_constants(matt_mode):
     # Calculate number of operands and add to macro element
     pop_keys = [pop for pop in PSEUDO_INSTRUCTIONS]
     for pop in pop_keys:
@@ -492,7 +459,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
         # sketch sketch
         words=[]
         for line in popinfo[0].split('\n'):
-            for decomposed in parse_line([line, 0], assembly_filename, 'pseudo-instruction prepper')[0]:
+            for decomposed in parse_line([line, 0], "assembler.py", 'pseudo-instruction prepper')[0]:
                 words += decomposed[0]
         nums=[int(word[1:len(word)-1]) for word in words if str(word)[0]=='{']
         if(len(nums)==0):
@@ -562,6 +529,41 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
             else:
                 fatal_error('assembler', f"loading stage: wtf: Optional operand \'{operands[idx-1][0]}\' declared inbetween mandatory ones in instruction \'{opcode}\'! (Will cause problems later)")
 
+###- MAIN THING -###
+# Assemble function
+def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_flags: int, matt_mode: bool):
+    try:
+        assembly_file = open(assembly_filename, 'r')
+    except FileNotFoundError as _ERR:
+        fatal_error('assembler', f"{assembly_filename}: File not found.\n{_ERR}")
+    if(verbose_level >= 0):
+        print(f"assembler: Reading from \'{assembly_filename}\'")
+        if(matt_mode):
+            # Matt mode engaged.
+            print(f"assembler: Matt mode active. ORG, DB, & multi-line pseudo-instructions are disabled.")
+    lines = [line.strip() for line in assembly_file]
+    assembly_file.close()
+
+    # DEBUG: ROM address size constant
+    ROM_address_size = int(log2(ROM_size) + 3) >> 2
+    line_address_size = int(log(len(lines), 10) + 1)
+    if(verbose_level >= 2):
+        print("Address hex width: %d (%s)"%(ROM_address_size, ''.join(hex(x%16).upper()[2] for x in range(ROM_address_size))))
+        print("Line address width: %d (%s)"%(line_address_size, ''.join(chr(0x30 + (x%10)) for x in range(line_address_size))))
+
+    # Remove comments and blanklines, and add line number
+    lines = [[remove_comment("/;#", line).strip(), idx+1] for idx, line in enumerate(lines)]
+
+    # Remove empty lines & add line numbers
+    lines = [line for line in lines if(len(line[0]) != 0)]
+
+    # Populatesymbol table
+    symbols = STARTING_SYMBOLS
+    # Definitions table
+    definitions = {}
+    # Labels table
+    labels = {}
+    
 #    for symbol in OPCODES:
 #        symbols[symbol] = OPCODES[symbol][0] # Add corresponding numeral opcode
 
@@ -868,7 +870,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
             machine_code |= current_opinfo[2]
 
             # Length check
-            if((int(log2(machine_code)) + 1) > (current_opinfo[3] * WORD_LENGTH)):
+            if((int(log2(machine_code if(machine_code != 0) else 1)) + 1) > (current_opinfo[3] * WORD_LENGTH)):
                 fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Uh-oh! the instruction at this line ended up bigger than expected, this should be investigated.. You should open an issue about this!\n" +
                 "Relevant info:\n" +
                 "  Version format: {1}\n  Version.......: {0}\n".format(*render_version(VERSION, VER_FMT)) +
