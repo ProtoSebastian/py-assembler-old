@@ -14,7 +14,7 @@ Example:
 
 `python main.py -vv -s1KiB -fMatt -Ooutput.txt test.s`
 - Verbosity: 2
-- ROM size: 1 Kibi-words
+- ROM size: 1 Kibi-[words](#word)
 - Output format: Matt
 - Output: output.txt
 - Input file: test.s
@@ -72,7 +72,15 @@ Example:
 
 ### `-M --matt-mode`
 
-  Enables Matt mode, which disables ORG directives, DB directives, and multi-line pseudo-instructions, because Matt's assembler doesn't support them.
+  Enables Matt mode, which disables DB & ORG directives, and multi-line pseudo-instructions, to remove jumps in address and make every line translate to exactly 1 machine code line.
+
+### `--dump-instructions`
+
+  Dump native-instructions and pseudo-instructions, then exit.
+
+### `--dump-symbols`
+
+  Dump symbols defined by the ISA, then exit.
 
 ### `--dump-labels`
 
@@ -175,35 +183,43 @@ Example:
 
 # Syntax
 ## Instructions and Pseudo-instructions
-`<MNEMONIC> <OPERAND 1>, <OPERAND 2>, <OPERAND 3>`
+`<MNEMONIC> <OPERAND 1>, <OPERAND 2>, <OPERAND 3>, ...`
 
 Operands may be separated by commas or space characters.
 
-`<MNEMONIC> <OPERAND 1> <OPERAND 2> <OPERAND 3>`
+`<MNEMONIC> <OPERAND 1> <OPERAND 2> <OPERAND 3> ...`
 
-Mnemonics are case-insensitive.
+Mnemonics are case-insensitive, and may have many definitions per mnemonic, differentiated by types.
 
 An operand may be a character literal (`'A'`), a 1-char string constant (`"B"`), integer (`123456`), 0x, 0o, 0b prefixed hexadecimal, octal, or binary integer (`0xC0FFEE`, `0o2431`, `0b01100101`), `$` prefixed hexadecimal (`$DEADBEEF`), an ISA-defined symbol (`r0`, `r15`), a `.` prefixed label (`.START`), or a previously defined symbol with DEFINE (`DEFINE A, 8`, `A`)
+
+An operand may be inside square-brackets to make it an address (`[0x800]`, `[.LABEL]`, `[%R1, %R2]`), prefixed by a '%' to be a register ('%R7'), or none to be an immediate (`$50`, `Some_definition`). if prefixed by a '+', it'll be added to the immediate behind it (`[$8001 +1]` -> `[0x8002]`, `[.LABEL +2]` -> `[<address of .LABEL + 2>]`, `[$5, +.LABEL]` -> `[<5 + address of .LABEL>]`). this and other types are optional or mandatory depending on the ISA's settings.
+
+To see every instruction and pseudo-instruction with the types of their operands, use the `--dump-instructions` option.
+
+Specifically for labels, it may be followed by an index inside square-brackets to select a specific [word](#word). (if .LABEL is 0x0260, and a word is 8-bits, `[.LABEL[1]]` -> `[0x02]` and `[.LABEL[0]]` -> [0x60]) This is useful when you want to store an address in registers but it has to be broken up into words. (A common technique used in low-spec CPUs to expand memory beyond what a single register can index without increasing the size of the registers.)
 
 Character literals and string constants may contain escaped characters.
 `"\n", '\t', '\0'`
 
 Examples:
 
-`cmp r5, r0`
+`cmp %R5, r0`
 
-`ldi r15 'H'`
+`ldi R15 'H'`
 
 `LDI r1 $51`
 
-`adi r0, 0x60`
+`adi r0, [0x60]`
 
 `LDI r5, "A"`
+
+`LOD %R3, [%R1, %R2]`
 
 ## DEFINE
 `DEFINE <LABEL>, <OPERAND>`
 
-The operand may be anything an instruction operand can be.
+The operand may be anything an instruction operand can be, even labels. (types don't matter)
 
 LABEL and OPERAND may be separated by commas or space characters.
 
@@ -215,13 +231,17 @@ Examples:
 
 `DEFINE A, 8`
 
-`define Terminal $8000`
+`define Terminal [$8000]`
+
+`define KEYBOARD [Terminal +1]`
 
 `define MODE_B, 0x30`
 
 `DEFINE SPACE, ' '`
 
 `DEFINE CHAR_A, "A"`
+
+`define Label_dependent .LABEL0 +$80`
 
 `define nl, '\n'`
 
@@ -230,7 +250,7 @@ Examples:
 
 Like instructions, operands may be separated by commas or space characters.
 
-Specially for DB directives, the operand may be a multi-char string constant as well as everything an instruction operand can be.
+Specially for DB directives, the operand may be a multi-char string constant as well as everything an instruction operand can be. (types don't matter)
 
 `DB "Hello, World!", 0x0A, 0x00`
 
@@ -240,6 +260,10 @@ The backslash may be used to insert characters that would be normally detected a
 
 `'\''`
 
+Indexing labels can be used to store addresses.
+
+`DB .Label2[1], .Label2[0]`
+
 'DB' is case-insensitive.
 
 Examples:
@@ -247,6 +271,8 @@ Examples:
 `DB 'c'`
 
 `db 0x30, 49, 0b00110010, 0o0063`
+
+`DB .Label0[1], .Label0[0]`
 
 `DB "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789"`
 
@@ -257,7 +283,7 @@ Examples:
 ## ORG directive
 `ORG <OPERAND>`
 
-ORG directives take a single operand. It can be anything an instruction's operand can be, except labels.
+ORG directives take a single operand. It can be anything an instruction's operand can be, except labels. (types don't matter)
 
 'ORG' is case-insensitive.
 
@@ -277,10 +303,46 @@ Examples:
 
 `define TERMINAL, $5001` (then, later in the code) `org TERMINAL`
 
+## Debug
+
+When dumping instructions, the assembler will display them like:
+
+```
+<label>:
+- 0: <LABEL> <operand types>...
+- 1: <LABEL> <operand types>...
+```
+
+Each branching line is a different variant of native-instruction/pseudo-instruction with the mnemonic \<label\>
+
+Examples:
+```
+Native-instructions:
+str:
+- 0: STR %register, [%register, immediate]
+- 1: STR %register, [%register, %register]
+lda:
+- 0: LDA [immediate]
+Pseudo-instructions:
+mov:
+- 0: MOV %register, %register -> alu 0, %{0}, %R0, %{1}
+- 1: MOV %register, immediate -> alui 0, %{0}, %R0, {1}
+add:
+- 0: ADD %register, %register, %register -> alu 0, %{0}, %{1}, %{2}
+- 1: ADD %register, %register, immediate -> alui 0, %{0}, %{1}, {2}
+```
+(from KP8B's ISA)
+
+If the type's name is preceded by a '%', it's a register (which the name also reflects). If preceded by nothing, it's an immediate (which the name reflects too). If it's inside square-brackets, it's an address (the type's name doesn't reflect that). If preceded by a '\*', type syntax is optional (which the name reflects that with "no type/\<optional type\>"). If followed by a '+', it has special functionality that the ISA itself has to explain.
+
+This may also be used to display all possible variants of a mnemonic if no matching variant is found.
+
 # Specifics
 
 ## Pseudo-instructions
-Pseudo-instructions get resolved into native instructions (instructions the CPU actually runs) as if they were macros, though they're written as normal instructions.
+Pseudo-instructions get resolved into native instructions (instructions the CPU actually runs) as if they were macros, though they're written as normal instructions, and may also have multiple definitions. (types might matter depending on the ISA settings)
+
+To see every instruction and pseudo-instruction with the types of their operands, use the `--dump-instructions` option.
 
 If you want to see that process, run the assembler with a verbosity of at least 3 (4 for assembly dump) and look under the "RESOLVING PSEUDO-INSTRUCTIONS" line.
 
@@ -290,11 +352,11 @@ Standing for Define Byte, it actually defines each operand as a [word](#word), o
 If a word is 2 bytes, the assembler will assemble like:
 `DB "Hello"`
 ```
-+0: 00 48 | . H |
-+1: 00 65 | . e |
-+2: 00 6C | . l |
-+3: 00 6C | . l |
-+4: 00 6F | . o |
++0: 00 48 |.H|
++1: 00 65 |.e|
++2: 00 6C |.l|
++3: 00 6C |.l|
++4: 00 6F |.o|
 ```
 (2 bytes per character)
 
@@ -303,11 +365,11 @@ It's assembled this way so iterating through the addresses will fetch 1 characte
 If a word is 3 bytes, it'll be assembled like shown below, for the same reasons:
 `DB "Hello"`
 ```
-+0: 00 00 48 | . . H |
-+1: 00 00 65 | . . e |
-+2: 00 00 6C | . . l |
-+3: 00 00 6C | . . l |
-+4: 00 00 6F | . . o |
++0: 00 00 48 |..H|
++1: 00 00 65 |..e|
++2: 00 00 6C |..l|
++3: 00 00 6C |..l|
++4: 00 00 6F |..o|
 ```
 (3 bytes per character)
 

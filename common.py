@@ -2,7 +2,7 @@ from math import log2, log
 from math import inf as INFINITY
 
 # MAJOR, MINOR, PATCH, PRE-RELEASE IDENTIFIER, BUILD (https://semver.org)
-VERSION = ['4','0','1','BETA','2']
+VERSION = ['5','0','2','BETA','6']
 # display like "MAJOR.MINOR.PATCH[-PRE-RELEASE IDENT][+BUILD]", [] = omitted if empty
 VER_FMT = "{0}.{1}.{2}[-{3}][+{4}]"
 # Size prefixes
@@ -139,7 +139,7 @@ def dump_array(array):
         output += f"  {type_print(element)}\n"
     output += "]\n"
     return output
-# Deep copy
+# Recursive deep copy
 def deep_copy(array):
     array_copy = []
     for x in array:
@@ -158,3 +158,20 @@ def find_max(array, key=lambda x:x):
     for element in array[1:]:
         max_val = max(max_val, key(element))
     return max_val
+# Recursive dump array
+def rec_dump_array(array, depth = 1, level = 1):
+    output = "["
+    for i in range(len(array)):
+        if((type(array[i]) == list) and (depth != 0) and (i == 0)):
+            output = output + rec_dump_array(array[i], depth - 1, level + 1) + ','
+        else:
+            output = output + '\n' + (' ' * level)
+            if(type(array[i]) == str):
+                output = output + '\'' + array[i] + '\''
+            elif((type(array[i]) == list) and (depth != 0)):
+                output = output + rec_dump_array(array[i], depth - 1, level + 1)
+            else:
+                output = output + str(array[i])
+            output = output + ','
+    output = output + '\n' + (' ' * (level - 1)) + ']'
+    return output
