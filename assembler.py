@@ -337,7 +337,7 @@ def display_type(word: list, a_or_an: bool = False):
         sentence = "no type/"*((word[1] >> 6) & 1) + " ".join(["immediate"]*(word[1] & 1) + ["register"]*((word[1] >> 1) & 1) + ["memory location"]*((word[1] >> 2) & 1) + [" + special behavior"]*((word[1] & (~0x7F)) != 0))
     elif(word[1] & (~0b111)):
         t = (word[1] >> 3) & 0b111
-        sentence = ["label", "definition", "ORG directive", "DB directive", "instruction"][t]
+        sentence = ["no type", "label", "definition", "ORG directive", "DB directive", "instruction"][t]
     else:
         sentence = "no type"
     if(a_or_an):
@@ -364,16 +364,16 @@ def display_word(word: list, optional_substitute: int = None):
         if(word[1] & 0o100):
             # * = any
             disp_word = '*' + disp_word
-        if(word[1] & (~0x7F)):
-            # + after = special behavior
-            disp_word = disp_word + '+'
         if(word[1] & 0b100):
             if(word[1] & 0b010000):
                 disp_word = '[' + disp_word
             if(word[1] & 0b100000):
                 disp_word = disp_word + ']'
-    elif(word[1] != 0):
+    elif((word[1] & 0x38) != 0):
         return disp_word.upper()
+    if(word[1] & (~0x7F)):
+        # + after = special behavior
+        disp_word = disp_word + '+'
     return disp_word
 # Resolve integers, ignores everything else
 def resolve_integer(word: list, filename: str, line: int, caller: str):
