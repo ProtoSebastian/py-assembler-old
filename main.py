@@ -18,8 +18,10 @@ Options:
                             Matt, Raw, Image, Hexdump, Logisim3, Logisim2, DEBUG.
                             (case-insensitive)
   -M --matt-mode            Enables Matt mode, which disables DB & ORG directives, and-
-                            multi-line pseudo-instructions, which Matt's assembler does-
-                            not support.
+                            multi-line pseudo-instructions, to remove jumps in address-
+                            and make every line translate to exactly 1 machine code line.
+     --dump-instructions    Dump instructions, then exit. (native and pseudo)
+     --dump-symbols         Dump symbols defined by the ISA, then exit.
      --dump-labels          Dump labels after assembly.
      --dump-definitions     Dump definitions after assembly.
   -v                        Verbose output. (more v's means higher-
@@ -131,6 +133,16 @@ def main():
                 case '--padding-word':
                     idx += 1
                     padding_word = interpret_int(sys.argv[idx])
+                # Dump instructions
+                case '--dump-instructions':
+                    debug_flags |= 4
+                    ROM_size = 0
+                    input_file = 'jomama'
+                # Dump symbols
+                case '--dump-symbols':
+                    debug_flags |= 8
+                    ROM_size = 0
+                    input_file = 'jomama'
                 # Dump labels
                 case '--dump-labels':
                     debug_flags |= 1
@@ -220,6 +232,8 @@ def main():
         fatal_error('main', "No ROM size specified, cannot continue.\nPlease specify a ROM size.")
     if(verbosity >= 1):
         print("main: Padding word is \'0x%04X\'"%padding_word)
+    if(verbosity >= 2):
+        print("main: Baking constants..")
     bake_constants(matt_mode)
     machine_code_output = assemble(input_file, ROM_size, verbosity - 1, debug_flags, matt_mode)
     formatter(machine_code_output, output_file, ROM_size, padding_word, format_style, verbosity)
