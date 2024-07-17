@@ -334,7 +334,7 @@ def convert_label(word: list):
 # Helper function for displaying the type of a word
 def display_type(word: list, a_or_an: bool = False):
     if(word[1] & 0b111):
-        sentence = "no type/"*((word[1] >> 6) & 1) + " ".join(["immediate"]*(word[1] & 1) + ["register"]*((word[1] >> 1) & 1) + ["memory location"]*((word[1] >> 2) & 1) + [" + special behavior"]*((word[1] & (~0x7F)) != 0))
+        sentence = "no type/"*((word[1] >> 6) & 1) + " ".join(["immediate"]*(word[1] & 1) + ["register"]*((word[1] >> 1) & 1))
     elif(word[1] & (~0b111)):
         t = (word[1] >> 3) & 0b111
         sentence = ["no type", "label", "definition", "ORG directive", "DB directive", "instruction"][t]
@@ -367,13 +367,17 @@ def display_word(word: list, optional_substitute: int = None):
         if(word[1] & 0b100):
             if(word[1] & 0b010000):
                 disp_word = '[' + disp_word
+            if(word[1] & (~0x7F)):
+                # + after = special behavior
+                disp_word = disp_word + '+'
             if(word[1] & 0b100000):
                 disp_word = disp_word + ']'
     elif((word[1] & 0x38) != 0):
         return disp_word.upper()
-    if(word[1] & (~0x7F)):
-        # + after = special behavior
-        disp_word = disp_word + '+'
+    else:
+        if(word[1] & (~0x7F)):
+            # + after = special behavior
+            disp_word = disp_word + '+'
     return disp_word
 # Resolve integers, ignores everything else
 def resolve_integer(word: list, filename: str, line: int, caller: str):
@@ -737,24 +741,30 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                 symbolinfo = STARTING_SYMBOLS[symbol]
                 print('- \'%s\' = %d (%s)'%(symbol, symbolinfo[0], display_word([display_type([symbolinfo[0], symbolinfo[1] & (~0b100)]), symbolinfo[1]])))
         if(debug_flags & 0x4):
-            print("Native-instructions:")
+            total = 0
+            print("Native-instructions: (%d)"%(len(OPCODES)))
             for opcode in OPCODES:
                 variations=OPCODES[opcode]
-                print(f"{opcode}:")
+                print(f"{opcode}: ({len(variations)})")
                 for variation_index in range(len(variations)):
                     variation = variations[variation_index]
                     params = [display_word([display_type([0, x[0][4] & (~0b100)]), x[0][4]], x[1] if(len(x) != 1) else None) for x in variation[1][0]]
 
                     print(f'- {variation_index}: ' + opcode.upper() + ' ' + ', '.join(params))
-            print("\nPseudo-instructions:")
+                    total += 1
+            print("(Total: %d)"%(total))
+            total = 0
+            print("\nPseudo-instructions: (%d)"%(len(PSEUDO_INSTRUCTIONS)))
             for label in PSEUDO_INSTRUCTIONS:
                 variations=PSEUDO_INSTRUCTIONS[label]
-                print(f"{label}:")
+                print(f"{label}: ({len(variations)})")
                 for variation_index in range(len(variations)):
                     variation = variations[variation_index]
                     params = [display_word([display_type([0, x & (~0b100)]), x], None) for x in variation[2]]
 
                     print(f'- {variation_index}: ' + label.upper() + ' ' + ', '.join(params) + ' -> ' + variation[1])
+                    total += 1
+            print("(Total: %d)"%(total))
         exit()
 
     try:
@@ -853,6 +863,10 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
     # Q: "why not tasks = decomposed_definitions?"
     # A: "because I only want a list of pointers to the lines so I don't modify the original"
     tasks = [x for x in decomposed_definitions]
+
+    if((verbose_level >= 1) and (len(tasks) == 0)):
+        print("Nothing to do.")
+
     # Parameter check
     for definition in tasks:
         merged_types = merge_offset_types(definition)
@@ -1262,10 +1276,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
     # DEBUG: display Assembly after resolving definitions
     if(verbose_level >= 3):
         print("\nASSEMBLY NOW:")
-        if(do_job):
-            print_assembly_wordpos(decomposed, last_was, line_address_size, ROM_address_size)
-        else:
-            print("<job skipped>")
+        print_assembly_wordpos(decomposed, last_was, line_address_size, ROM_address_size)
 
     # Lines should be clean by now
 
@@ -1336,6 +1347,12 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                 if(len(words) <= idx):
                     words.append([opcode[1], opcode[0][4]])
                 opinfo = opcode[0]
+
+                # Check if bit width is 0
+                if(opinfo[2] == 0):
+                    # Skip assembling operand
+                    continue
+
                 mask   = (1 << opinfo[2]) - 1
                 sign   = 1
                 if(words[idx][0] < 0):

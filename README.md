@@ -1,6 +1,8 @@
 # Intro
 A fork of [@MattBatWings](https://github.com/MattBatWings)'s assembler that I kept adding features to while keeping it a superset of the original.
 
+Implements Matt's BatPU-v2 ISA.
+
 Original project: https://github.com/MattBatWings/newcpu
 
 Link to ISA spreadsheet: https://docs.google.com/spreadsheets/d/1Bj3wHV-JifR2vP4HRYoCWrdXYp3sGMG0Q58Nm56W4aI/edit?usp=sharing
