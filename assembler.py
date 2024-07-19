@@ -980,7 +980,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                     merge_offset_parameters(line)
                     variant_index = res[1]
                     if(line_number not in last_was):
-                        last_was[line_number] = original_lines[line[1]][0]
+                        last_was[line_number] = original_lines[line[1]][-1]
                     cont=True
                     popinfo=PSEUDO_INSTRUCTIONS[label][variant_index]
 
@@ -1040,7 +1040,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                     fatal_error('assembler', f"instruction type resolver: {assembly_filename}:{line_number}: No native-instruction variation for \'{label.upper()}\' matches\n  {display_types_line(line)}\nVariations:\n  {'\n  '.join(display_types_line([label] + [[y[0][4], y[1] if(len(y) > 1) else None] for y in x[1][0]], True) for x in OPCODES[label])}")
             # fuck
             else:
-                fatal_error('assembler', f"instruction type resolver: {assembly_filename}:{line_number}: No native-instruction with the mnemonic \'{line[0][0][0].upper()}\' known.\n" + "%0*d:   %s ; %s"%(line_address_size, line[1], recompose_line(original_lines[line[1]][0]), display_types_line(line)))
+                fatal_error('assembler', f"instruction type resolver: {assembly_filename}:{line_number}: No native-instruction with the mnemonic \'{line[0][0][0].upper()}\' known.\n" + "%0*d:   %s ; %s"%(line_address_size, line[1], recompose_line(original_lines[line[1]][-1]), display_types_line(line)))
     # New format: [[['<label>', type, variant], ['<param>', type], ...], <line number>]
     # (the variant is appended to the label)
 
@@ -1315,7 +1315,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                        print("%s|%-16s|"%(' '*((word_display_size + 1) * (15 - ((head - 1) % 16))), ''.join((chr(words[idx][0]) if(chr(words[idx][0]).isprintable()) else '.') for idx in range(head - ((head - 1) % 16) - 1, head))), end='')
                 print()
 
-            output_machine_code.append([sum(words[len(words) - index - 1][0] << (index * WORD_LENGTH) for index in range(len(words))), line_number, line[2], len(words), original_lines[line_number][0]])
+            output_machine_code.append([sum(words[len(words) - index - 1][0] << (index * WORD_LENGTH) for index in range(len(words))), line_number, line[2], len(words), original_lines[line_number][-1]])
         # handle instructions
         elif(current_type == 0o50):
             variant = line[0][0][2]
@@ -1382,7 +1382,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
             # Output
             # Format is: [<INSTRUCTION>, <LINE IN ASSEMBLY FILE>, <POSITION IN WORDS>, <SIZE IN WORDS>, [<ORIGINAL OPERANDS>]]
             if(last_line != line_number):
-                output_machine_code.append([machine_code, line_number, line[2], current_size, original_lines[line_number][0]])
+                output_machine_code.append([machine_code, line_number, line[2], current_size, original_lines[line_number][-1]])
             else:
                 output_machine_code.append([machine_code, line_number, line[2], current_size])
             if(verbose_level >= 2):
