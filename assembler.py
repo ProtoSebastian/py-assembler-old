@@ -1007,7 +1007,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                     decomposed = decomposed[:index] + parsed + decomposed[index + 1:]
                 # no variant found
                 else:
-                    fatal_error('assembler', f"pseudo-instruction resolver: {assembly_filename}:{line_number}: No pseudo-instruction variation for \'{label.upper()}\' matches\n  {display_types_line(line)}\nVariations:\n  {'\n  '.join(display_types_line([label] + [[y] for y in x[2]], True) for x in PSEUDO_INSTRUCTIONS[label])}")
+                    fatal_error('assembler', f"pseudo-instruction resolver: {assembly_filename}:{line_number}: No pseudo-instruction variation for \'{label.upper()}\' matches\n  {display_types_line(line)}\nVariations:\n  " + '\n  '.join(display_types_line([label] + [[y] for y in x[2]], True) for x in PSEUDO_INSTRUCTIONS[label]))
             else:
                 index += 1
 
@@ -1037,7 +1037,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                         print("%*d: %s -> \'%s\' variation %d"%(line_address_size, line_number, recompose_line(line), label.upper(), res[1]))
                 # no variant found
                 else:
-                    fatal_error('assembler', f"instruction type resolver: {assembly_filename}:{line_number}: No native-instruction variation for \'{label.upper()}\' matches\n  {display_types_line(line)}\nVariations:\n  {'\n  '.join(display_types_line([label] + [[y[0][4], y[1] if(len(y) > 1) else None] for y in x[1][0]], True) for x in OPCODES[label])}")
+                    fatal_error('assembler', f"instruction type resolver: {assembly_filename}:{line_number}: No native-instruction variation for \'{label.upper()}\' matches\n  {display_types_line(line)}\nVariations:\n  " + '\n  '.join(display_types_line([label] + [[y[0][4], y[1] if(len(y) > 1) else None] for y in x[1][0]], True) for x in OPCODES[label]))
             # fuck
             else:
                 fatal_error('assembler', f"instruction type resolver: {assembly_filename}:{line_number}: No native-instruction with the mnemonic \'{line[0][0][0].upper()}\' known.\n" + "%0*d:   %s ; %s"%(line_address_size, line[1], recompose_line(original_lines[line[1]][-1]), display_types_line(line)))
