@@ -2,6 +2,8 @@
 > This project is moving to https://github.com/ProtoSebastian/py-assembler
 >
 > Though it's still in progress, so keep using this, but check it out!
+>
+> Note that certain python versions won't work because backslashes are being used in the f-string terms.
 
 # Intro
 A fork of [@MattBatWings](https://github.com/MattBatWings)'s assembler that I kept adding features to while keeping it a superset of the original.
